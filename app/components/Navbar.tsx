@@ -1,0 +1,15 @@
+import {Link} from "react-router";
+
+const Navbar: () => Element =  () =>{
+    return (
+        <nav className="navbar">
+            <Link to="/">
+                <p className="test-2xl font-bold text-gradient">RESUMIND</p>
+            </Link>
+            <Link to="to" className="primary-button w-fit">
+                Upload Resume
+            </Link>
+        </nav>
+    )
+}
+export default Navbar
