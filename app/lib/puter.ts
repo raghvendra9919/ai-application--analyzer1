@@ -52,7 +52,7 @@ interface PuterStore {
     fs: {
         write: (path: string, data: string | File | Blob) => Promise<File | undefined>;
         read: (path: string) => Promise<Blob | undefined>;
-        upload: (file:File[]) => Promise<FSItem | undefined>; // Fixed type definition union
+        upload: (file: (File | Blob)[]) => Promise<FSItem | undefined>; // Aligned type signature
         delete: (path: string) => Promise<void>;
         readDir: (path: string) => Promise<FSItem[] | undefined>;
     };
@@ -82,7 +82,6 @@ const getPuter = (): typeof window.puter | null =>
 
 export const usePuterStore = create<PuterStore>((set, get) => {
 
-    // Helper to safely preserve function bindings when updating state
     const setError = (msg: string) => {
         set((state) => ({
             error: msg,
@@ -287,7 +286,7 @@ export const usePuterStore = create<PuterStore>((set, get) => {
                     ],
                 },
             ],
-            { model: "claude-3-5-sonnet" } // Fixed model string identifier to match standard Puter.js bindings
+            { model: "claude-3-5-sonnet" }
         ) as Promise<AIResponse | undefined>;
     };
 
@@ -295,6 +294,37 @@ export const usePuterStore = create<PuterStore>((set, get) => {
         const puter = getPuter();
         if (!puter) throw new Error("Puter.js not available");
         return puter.ai.img2txt(image, testMode);
+    };
+
+    // Isolated Key-Value helpers to prevent missing references
+    const getKV = async (key: string) => {
+        const puter = getPuter();
+        if (!puter) throw new Error("Puter.js not available");
+        return puter.kv.get(key);
+    };
+
+    const setKV = async (key: string, value: string) => {
+        const puter = getPuter();
+        if (!puter) throw new Error("Puter.js not available");
+        return puter.kv.set(key, value);
+    };
+
+    const deleteKV = async (key: string) => {
+        const puter = getPuter();
+        if (!puter) throw new Error("Puter.js not available");
+        return puter.kv.delete(key);
+    };
+
+    const listKV = async (pattern: string, returnValues?: boolean) => {
+        const puter = getPuter();
+        if (!puter) throw new Error("Puter.js not available");
+        return puter.kv.list(pattern, returnValues ?? false);
+    };
+
+    const flushKV = async () => {
+        const puter = getPuter();
+        if (!puter) throw new Error("Puter.js not available");
+        return puter.kv.flush();
     };
 
     return {
@@ -323,11 +353,11 @@ export const usePuterStore = create<PuterStore>((set, get) => {
             img2txt: (image, testMode) => img2txt(image, testMode),
         },
         kv: {
-            get: (key) => puter.kv.get(key),
-            set: (key, value) => puter.kv.set(key, value),
-            delete: (key) => puter.kv.delete(key),
-            list: (pattern, returnValues) => puter.kv.list(pattern, returnValues ?? false),
-            flush: () => puter.kv.flush(),
+            get: (key) => getKV(key),
+            set: (key, value) => setKV(key, value),
+            delete: (key) => deleteKV(key),
+            list: (pattern, returnValues) => listKV(pattern, returnValues),
+            flush: () => flushKV(),
         },
         init,
         clearError: () => set({ error: null }),

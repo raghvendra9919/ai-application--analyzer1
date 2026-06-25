@@ -11,7 +11,6 @@ const Upload = () => {
     const { auth, isLoading, fs, ai, kv } = usePuterStore();
     const navigate = useNavigate();
 
-    // FIX 1: Start as false. It should only be true when actively analyzing.
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusText, setStatusText] = useState('');
     const [file, setFile] = useState<File | null>(null);
@@ -20,17 +19,20 @@ const Upload = () => {
         setFile(file);
     };
 
-    const handleAnalyze = async ({ companyName, jobTitle, jobDescription, file }: { companyName: string, jobTitle: string, jobDescription: string, file:File | null  }) => {
+    // FIX 1: Changed file type signature to 'File' since null is filtered out beforehand
+    const handleAnalyze = async ({ companyName, jobTitle, jobDescription, file }: { companyName: string, jobTitle: string, jobDescription: string, file: File }) => {
         setIsProcessing(true);
         setStatusText('Uploading the file ...');
 
-
+        try {
             const uploadedFile = await fs.upload([file]);
             if (!uploadedFile) return setStatusText('Error: Failed to upload file');
 
             setStatusText('Converting to image ...');
             const imageFile = await convertPdfToImage(file);
-            if (imageFile) return setStatusText('Error: Failed to convert PDF to image');
+
+            // FIX 2: Added the missing '!' so it correctly flags a FAILURE instead of a success
+            if (!imageFile) return setStatusText('Error: Failed to convert PDF to image');
 
             setStatusText('Uploading the image ...');
             const uploadedImage = await fs.upload([imageFile.file]);
@@ -61,21 +63,20 @@ const Upload = () => {
 
             data.feedback = JSON.parse(feedbackText);
             await kv.set(`resume:${uuid}`, JSON.stringify(data));
-
             setStatusText('Analysis complete, redirecting ...');
-
-            // Redirect to the resume feedback page using your generated UUID
-
+            console.log(data);
             navigate(`/resume/${uuid}`);
-
+        } catch (error) {
+            console.error(error);
+            setStatusText('An unexpected error occurred.');
+            setIsProcessing(false);
+        }
     };
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        // FIX 2: e.currentTarget is safely the form element itself
         const formData = new FormData(e.currentTarget);
-
         const companyName = formData.get('company-name') as string;
         const jobTitle = formData.get('job-title') as string;
         const jobDescription = formData.get('job-description') as string;
@@ -96,7 +97,6 @@ const Upload = () => {
                 <div className="page-heading py-16">
                     <h1>Smart feedback for your dream job</h1>
 
-                    {/* FIX 3: Cleaned up conditional rendering blocks */}
                     {isProcessing ? (
                         <div className="flex flex-col items-center gap-4 mt-4">
                             <h2 className="text-xl font-semibold text-purple-600">{statusText}</h2>
